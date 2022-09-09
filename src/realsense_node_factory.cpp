@@ -1,16 +1,15 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2017 Intel Corporation. All Rights Reserved
 
-#include "../include/realsense_node_factory.h"
-#include "../include/base_realsense_node.h"
-#include "../include/t265_realsense_node.h"
+#include "realsense_node_factory.h"
+#include "base_realsense_node.h"
+#include "t265_realsense_node.h"
 #include <iostream>
 #include <map>
 #include <mutex>
 #include <condition_variable>
 #include <signal.h>
 #include <thread>
-#include <sys/time.h>
 #include <regex>
 
 using namespace realsense2_camera;
@@ -20,7 +19,7 @@ constexpr auto realsense_ros_camera_version = REALSENSE_ROS_EMBEDDED_VERSION_STR
 
 RealSenseNodeFactory::RealSenseNodeFactory(const rclcpp::NodeOptions & node_options) :
 	Node("camera", "/", node_options),
-	_logger(this->get_logger())
+	_logger(rclcpp::get_logger("RealSenseCameraNode"))
 {
   init();
 }
@@ -28,7 +27,7 @@ RealSenseNodeFactory::RealSenseNodeFactory(const rclcpp::NodeOptions & node_opti
 RealSenseNodeFactory::RealSenseNodeFactory(const std::string & node_name, const std::string & ns,
 										   const rclcpp::NodeOptions & node_options) : 
 	Node(node_name, ns, node_options),
-	_logger(this->get_logger())
+	_logger(rclcpp::get_logger("RealSenseCameraNode"))
 {
   init();
 }
@@ -75,9 +74,9 @@ void RealSenseNodeFactory::getDevice(rs2::device_list list)
 		else
 		{
 			bool found = false;
-			rs2::device dev;
 			for (size_t count = 0; count < list.size(); count++)
 			{
+				rs2::device dev;
 				try
 				{
 					dev = list[count];
@@ -265,7 +264,7 @@ void RealSenseNodeFactory::init()
 		_usb_port_id = declare_parameter("usb_port_id", rclcpp::ParameterValue("")).get<rclcpp::PARAMETER_STRING>();
 		_device_type = declare_parameter("device_type", rclcpp::ParameterValue("")).get<rclcpp::PARAMETER_STRING>();
     	_wait_for_device_timeout = declare_parameter("wait_for_device_timeout", rclcpp::ParameterValue(-1.0)).get<rclcpp::PARAMETER_DOUBLE>();
-    	_reconnect_timeout = declare_parameter("reconnect_timeout", 6.0);
+    	_reconnect_timeout = declare_parameter("reconnect_timeout", rclcpp::ParameterValue(6.0)).get<rclcpp::PARAMETER_DOUBLE>();
 
 		// A ROS2 hack: until a better way is found to avoid auto convertion of strings containing only digits to integers:
 		if (_serial_no.front() == '_') _serial_no = _serial_no.substr(1);	// remove '_' prefix
@@ -298,38 +297,31 @@ void RealSenseNodeFactory::init()
 				rclcpp::Time first_try_time = this->get_clock()->now();
 				while (_is_alive && !_device)
 				{
-					try
+					getDevice(_ctx.query_devices());
+					if (_device)
 					{
-						getDevice(_ctx.query_devices());
-						if (_device)
-						{
-							std::function<void(rs2::event_information&)> change_device_callback_function = [this](rs2::event_information& info){changeDeviceCallback(info);};
-							_ctx.set_devices_changed_callback(change_device_callback_function);
-							startDevice();
-						}
-						else
-						{
-							std::chrono::milliseconds actual_timespan(timespan);
-							if (_wait_for_device_timeout > 0)
-							{
-								auto time_to_timeout(_wait_for_device_timeout - (this->get_clock()->now() - first_try_time).seconds());
-								if (time_to_timeout < 0)
-								{
-									ROS_ERROR_STREAM("wait for device timeout of " << _wait_for_device_timeout << " secs expired");
-									exit(1);
-								}
-								else
-								{
-									double max_timespan_secs(std::chrono::duration_cast<std::chrono::seconds>(timespan).count());
-									actual_timespan = std::chrono::milliseconds (static_cast<int>(std::min(max_timespan_secs, time_to_timeout) * 1e3));
-								}
-							}
-							std::this_thread::sleep_for(actual_timespan);
-						}
+						std::function<void(rs2::event_information&)> change_device_callback_function = [this](rs2::event_information& info){changeDeviceCallback(info);};
+						_ctx.set_devices_changed_callback(change_device_callback_function);
+						startDevice();
 					}
-					catch(const std::exception& e)
+					else
 					{
-						ROS_ERROR_STREAM("Error starting device: " << e.what());
+						std::chrono::milliseconds actual_timespan(timespan);
+						if (_wait_for_device_timeout > 0)
+						{
+							auto time_to_timeout(_wait_for_device_timeout - (this->get_clock()->now() - first_try_time).seconds());
+							if (time_to_timeout < 0)
+							{
+								ROS_ERROR_STREAM("wait for device timeout of " << _wait_for_device_timeout << " secs expired");
+								exit(1);
+							}
+							else
+							{
+								double max_timespan_secs(std::chrono::duration_cast<std::chrono::seconds>(timespan).count());
+								actual_timespan = std::chrono::milliseconds (static_cast<int>(std::min(max_timespan_secs, time_to_timeout) * 1e3));
+							}
+						}
+						std::this_thread::sleep_for(actual_timespan);
 					}
 				}
 			});
@@ -376,18 +368,16 @@ void RealSenseNodeFactory::startDevice()
 		case RS_L515_PID_PRE_PRQ:
 		case RS_L515_PID:
 		case RS_L535_PID:
-			_realSenseNode = std::unique_ptr<BaseRealSenseNode>(new BaseRealSenseNode(*this, _device, _parameters, this->get_node_options().use_intra_process_comms()));
+			_realSenseNode = std::unique_ptr<BaseRealSenseNode>(new BaseRealSenseNode(*this, _device, _parameters));
 			break;
 		case RS_T265_PID:
-			_realSenseNode = std::unique_ptr<T265RealsenseNode>(new T265RealsenseNode(*this, _device, _parameters, this->get_node_options().use_intra_process_comms()));
+			_realSenseNode = std::unique_ptr<T265RealsenseNode>(new T265RealsenseNode(*this, _device, _parameters));
 			break;
 		default:
 			ROS_FATAL_STREAM("Unsupported device!" << " Product ID: 0x" << pid_str);
 			rclcpp::shutdown();
 			exit(1);
 		}
-		_realSenseNode->publishTopics();
-
 	}
 	catch(const rs2::backend_error& e)
 	{

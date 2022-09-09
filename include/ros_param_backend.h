@@ -1,5 +1,3 @@
-#pragma once
-
 #include <rclcpp/rclcpp.hpp>
 
 namespace realsense2_camera
@@ -9,7 +7,7 @@ namespace realsense2_camera
         public:
             ParametersBackend(rclcpp::Node& node) : 
                 _node(node),
-                _logger(node.get_logger())
+                _logger(rclcpp::get_logger("RealSenseCameraNode"))
                 {};
             ~ParametersBackend();
             void add_on_set_parameters_callback(rclcpp::node_interfaces::NodeParametersInterface::OnParametersSetCallbackType callback);
