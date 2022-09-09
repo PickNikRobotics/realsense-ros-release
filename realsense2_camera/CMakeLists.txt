@@ -92,13 +92,14 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(realsense2_camera_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(diagnostic_updater REQUIRED)
 
-find_package(realsense2 2.50.0)
+find_package(realsense2 2.49.0)
 if(NOT realsense2_FOUND)
     message(FATAL_ERROR "\n\n Intel RealSense SDK 2.0 is missing, please install it from https://github.com/IntelRealSense/librealsense/releases\n\n")
 endif()
@@ -112,15 +113,7 @@ set(SOURCES
     src/realsense_node_factory.cpp
     src/base_realsense_node.cpp
     src/t265_realsense_node.cpp
-    src/parameters.cpp
-    src/rs_node_setup.cpp
-    src/ros_sensor.cpp
-    src/ros_utils.cpp
     src/dynamic_params.cpp
-    src/sensor_params.cpp
-    src/named_filter.cpp
-    src/profile_manager.cpp
-    src/image_publisher.cpp
   )
 
 if(NOT DEFINED ENV{ROS_DISTRO})
@@ -142,6 +135,10 @@ elseif("$ENV{ROS_DISTRO}" STREQUAL "galactic")
   message(STATUS "Build for ROS2 Galactic")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGALACTIC")
   set(SOURCES "${SOURCES}" src/ros_param_backend_foxy.cpp)
+elseif("$ENV{ROS_DISTRO}" STREQUAL "humble")
+  message(STATUS "Build for ROS2 Humble")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHUMBLE")
+  set(SOURCES "${SOURCES}" src/ros_param_backend_foxy.cpp)
 elseif("$ENV{ROS_DISTRO}" STREQUAL "rolling")
   message(STATUS "Build for ROS2 Rolling")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DROLLING")
@@ -150,33 +147,13 @@ else()
   message(FATAL_ERROR "Unsupported ROS Distribution: " "$ENV{ROS_DISTRO}")
 endif()
 
-set(INCLUDES
+
+add_library(${PROJECT_NAME} SHARED
     include/constants.h
     include/realsense_node_factory.h
     include/base_realsense_node.h
-    include/t265_realsense_node.h
-    include/ros_sensor.h
-    include/ros_utils.h
     include/dynamic_params.h
-    include/sensor_params.h
-    include/named_filter.h
     include/ros_param_backend.h
-    include/profile_manager.h
-    include/image_publisher.h)
-
-
-if (BUILD_TOOLS)
-
-  include_directories(tools)
-  set(INCLUDES ${INCLUDES}
-    tools/frame_latency/frame_latency.h)
-
-  set(SOURCES ${SOURCES}
-    tools/frame_latency/frame_latency.cpp)
-endif()
-
-add_library(${PROJECT_NAME} SHARED
-    ${INCLUDES}
     ${SOURCES}
 )
 
@@ -191,6 +168,7 @@ set(dependencies
   rclcpp_components
   realsense2_camera_msgs
   std_msgs
+  std_srvs
   sensor_msgs
   nav_msgs
   tf2
@@ -208,15 +186,6 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE realsense2_camera_node
 )
 
-if(BUILD_TOOLS)
-
-  rclcpp_components_register_node(${PROJECT_NAME}
-  PLUGIN "rs2_ros::tools::frame_latency::FrameLatencyNode"
-  EXECUTABLE realsense2_frame_latency_node
-  )
-
-endif()
-
 # Install binaries
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION lib
@@ -231,8 +200,10 @@ install(
 )
 
 # Install launch files
-install(DIRECTORY 
+install(DIRECTORY
     launch
+    config
+    rviz
     DESTINATION share/${PROJECT_NAME}
     )
 
