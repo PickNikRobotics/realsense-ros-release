@@ -2,20 +2,37 @@
 Changelog for package realsense2_description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-4.0.4 (2022-03-20)
+3.2.3 (2021-11-11)
+------------------
+* Add D455 description
+* Add missing aluminum material to d415 model.
+* Contributors: Gilad Bretter, doronhi
+
+3.2.2 (2021-07-01)
+------------------
+* Added imu frames to _l515.urdf.xacro
+* Add conditional param use_mesh
+* Add demo_pointcloud_launch.py
+* Contributors: Simon Honigmann, doronhi
+
+3.2.1 (2021-05-10)
 ------------------
 
-4.0.3 (2022-03-16)
+3.2.0 (2021-05-05)
 ------------------
 
-4.0.2 (2022-02-24)
+3.1.6 (2021-05-05)
 ------------------
 
-4.0.1 (2022-02-01)
+3.1.5 (2021-03-24)
 ------------------
-* Add D455 urdf files
 
-* Contributors: nomumu, JamesChooWK, doronhi
+3.1.4 (2021-02-18)
+------------------
+* d415 add plug
+* fix d415 mass in _d415.urdf.xacro.
+  import tests for xacro files.
+* Contributors: Manuel Stahl, Tim Übelhör, doronhi
 
 3.1.3 (2020-12-28)
 ------------------
@@ -23,7 +40,7 @@ Changelog for package realsense2_description
   remove boost dependency.
   rename node_namespace to namespace
   rename node_executable to executable
-* Contributors: benlev, Gilaadb, doronhi
+* Contributors: doronhi
 
 3.1.2 (2020-12-10)
 ------------------

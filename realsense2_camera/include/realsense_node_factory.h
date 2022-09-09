@@ -2,6 +2,8 @@
 // Copyright(c) 2018 Intel Corporation. All Rights Reserved
 
 #pragma once
+#ifndef ___REALSENSE_NODE_FACTORY_HEADER___
+#define ___REALSENSE_NODE_FACTORY_HEADER___
 
 // cpplint: c system headers
 #include "constants.h"
@@ -20,6 +22,7 @@
 #include <utility>
 #include <vector>
 #include <thread>
+#include "dynamic_params.h"
 
 namespace realsense2_camera
 {
@@ -57,3 +60,4 @@ namespace realsense2_camera
         std::shared_ptr<Parameters> _parameters;
     };
 }//end namespace
+#endif //___REALSENSE_NODE_FACTORY_HEADER___
